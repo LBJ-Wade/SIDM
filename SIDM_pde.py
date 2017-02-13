@@ -1,0 +1,136 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import axes3d
+
+def interp(grid):
+    grid_shape = grid.shape
+    new_grid_shape = grid_shape*2
+    return 5
+    
+def restr(grid):
+    return 5
+
+def baryon_profile(r, z):
+    # r is a 2-d array of the r-values used in the grid of points
+    # z is a 2-d array of the z-values used in the grid of points     
+    zthin = 0.3 #in kpc
+    zthick = 0.9 #in kpc
+    rthin = 2.9 #in kpc
+    rthick = 3.3 #in kpc
+    rcut = 2.1 #in kpc
+    r0 = 0.075 #in kpc
+    rhobulge = 9.9e10 #in M_sun / kpc^3
+    sthin = 8.17e8 #in M_sun / kpc^2
+    sthick = 2.09e9 #in M_sun / kpc^2    
+    q = 0.5     
+    a = 1.8
+    rho_baryon = rhobulge*np.exp(-(r**2 + z**2/q**2)/rcut**2) / (1 + np.sqrt(r**2 + z**2/q**2)/r0)**a + 0.5*sthin*np.exp(-z/zthin-r/rthin)/zthin + 0.5*sthick*np.exp(-z/zthick-r/rthick)/zthick
+    return rho_baryon                
+
+def NFW_template(r,z):
+    rhos = 4.589e6 #in Msun/kpc^3
+    rho0 = 5.e6 #in Msun/kpc^3
+    Rs = 23. #in kpc
+    R = np.sqrt(r**2+z**2)
+    return np.log(rhos/rho0 * Rs/R * 1/(1+R/Rs)**2)
+       
+def relax(u, r, z, r1, rho0, iterations):
+    #u is the solution to the diffeq, given in terms of log(rho/rho0)
+    g= 2.71*(rho0/5.e6)*(r1/10.)**2 # 4pi * GN * rho0 *r1**2/sigma**2 for sigma 100 km/s, it is dimensionless  
+    delta_r = np.gradient(r/r1)[0]  # for a 2-d array, gradient returns gradient as a list 'vector' defined at each point, 0 axis for r and 1 axis for z   
+    delta_z = np.gradient(z/r1)[1]
+    #time_step = 1/10000.
+    for i in range(iterations):
+        u[0,:] = u[1,:] 
+        u[:,0] = u[:,1] 
+        #enforces the derivative goes to 0 at r,z = 0, which is required by symmetry / smoothness
+        residual = r1/r*np.gradient(u)[0]/delta_r + np.gradient(u,2)[0]/delta_r**2 + np.gradient(u,2)[1]/delta_z**2 + g*(baryon_profile(r,z)/rho0+np.exp(u))
+        time_step = 1e-3/residual.max()
+        u += time_step*residual
+        u[-1,:] = NFW_template(r[-1,:],z[-1,:])
+        u[:,-1] = NFW_template(r[:,-1],z[:,-1]) #used to enforce 'NFW for large R' boundary condition 
+    return u, residual
+
+
+r_len = 25
+z_len = 25
+bound = 1
+scale = -4. #exponential term to describe innermost point r_inner = r1 * 10^scale
+r1 = 5. # in kpc 
+rho0 = 5.e6 # scale density of the solution in M_sun/kpc^3
+
+
+
+#arrays (r,z,u) have the shape (r_len,z_len)  
+  
+r = bound*r1*np.logspace(scale,0.,r_len,endpoint=True) #the polar radius; varies from r1*( e^-scale to 1), the [::-1] is there to reverse the array to make the index start at the inner part of the halo
+r = np.tile(r[:,np.newaxis],(1,z_len))
+
+z = bound*r1*np.logspace(scale,0.,z_len,endpoint=True) #the height; varies from r1*( e^-scale to 1), the [::-1] is there to reverse the array to make the index start at the inner part of the halo
+z = np.tile(z[np.newaxis,:],(r_len,1))
+
+
+u = NFW_template(r, z) #u is the solution to the diffeq, given in terms of log(rho/rho0)       
+
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+# Plot a basic wireframe.
+ax.plot_wireframe(np.log(r), np.log(z), u, rstride=2, cstride=2)
+#plt.xscale('log')
+#plt.yscale('log')
+plt.savefig('wireplot_before.png')
+plt.clf()
+
+u, residual = relax(u, r, z, r1, rho0, 1000000)
+
+#print residual       
+
+plt.contourf(r,z,u)
+plt.xscale('log')
+plt.yscale('log')
+plt.savefig('log_density.png')
+plt.clf()
+
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+# Plot a basic wireframe.
+ax.plot_wireframe(np.log(r), np.log(z), u, rstride=2, cstride=2)
+plt.savefig('wireplot_after.png')
+plt.clf()
+
+manual_locations = [(1e-3,3e-3),(1e-3,8e-3),(1e-3,1.5e-2),(1e-3,2.5e-2),(1e-3,4e-2),(1e-3,8e-1),(1e-3,4)] 
+CS = plt.contour(np.log(r),np.log(z),u)
+plt.clabel(CS, inline=1, fontsize=10, manual=manual_locations)
+plt.savefig('log_density_lines.png')
+plt.clf()
+
+plt.contourf(r,z,residual)
+plt.xscale('log')
+plt.yscale('log')
+plt.savefig('final_residual.png')
+plt.clf()
+
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+# Plot a basic wireframe.
+ax.plot_wireframe(np.log(r), np.log(z), residual, rstride=2, cstride=2)
+#plt.xscale('log')
+#plt.yscale('log')
+plt.savefig('wireplot_residual.png')
+plt.clf()
+
+plt.contourf(r,z,residual/u)
+plt.xscale('log')
+plt.yscale('log')
+plt.savefig('final_residual_contrast.png')
+plt.clf()
+
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+# Plot a basic wireframe.
+ax.plot_wireframe(np.log(r), np.log(z), residual/u, rstride=2, cstride=2)
+#plt.xscale('log')
+#plt.yscale('log')
+plt.savefig('wireplot_residual_contrast.png')
+plt.clf()
+                
