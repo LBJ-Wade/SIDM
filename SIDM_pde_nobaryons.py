@@ -33,7 +33,6 @@ def NFW_template(r,z):
     Rs = 23. #in kpc
     R = np.sqrt(r**2+z**2)
     return np.log(rhos/rho0 * Rs/R * 1/(1+R/Rs)**2)
-
        
 def relax(u, r, z, r1, rho0, iterations):
     #u is the solution to the diffeq, given in terms of log(rho/rho0)
@@ -45,7 +44,7 @@ def relax(u, r, z, r1, rho0, iterations):
         u[0,:] = u[1,:] 
         u[:,0] = u[:,1] 
         #enforces the derivative goes to 0 at r,z = 0, which is required by symmetry / smoothness
-        residual = r1/r*np.gradient(u)[0]/delta_r + np.gradient(u,2)[0]/delta_r**2 + np.gradient(u,2)[1]/delta_z**2 + g*(baryon_profile(r,z)/rho0+np.exp(u))
+        residual = r1/r*np.gradient(u)[0]/delta_r + np.gradient(u,2)[0]/delta_r**2 + np.gradient(u,2)[1]/delta_z**2 + g*(np.exp(u))
         time_step = 1e-3/residual.max()
         u += time_step*residual
         u[-1,:] = NFW_template(r[-1,:],z[-1,:])
@@ -55,7 +54,7 @@ def relax(u, r, z, r1, rho0, iterations):
 
 r_len = 26
 z_len = 25
-bound = 1
+bound = 1 # used to easily scale out boundary
 scale = -4. #exponential term to describe innermost point r_inner = r1 * 10^scale
 r1 = 5. # in kpc 
 rho0 = 5.e6 # scale density of the solution in M_sun/kpc^3
@@ -73,28 +72,27 @@ z = np.tile(z[np.newaxis,:],(r_len,1))
 
 u = NFW_template(r, z) #u is the solution to the diffeq, given in terms of log(rho/rho0)       
 
-
 #### PLOTS BEFORE RELAXATION ####
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 ax.plot_wireframe(np.log(r), np.log(z), u, rstride=2, cstride=2)
 plt.xlabel(r'$\log(r)$')
 plt.ylabel(r'$\log(z)$')
-plt.savefig('wireplot_before.png')
+plt.savefig('wireplot_before_iso.png')
 plt.clf()
 
 CS = plt.contour(np.log(r),np.log(z),u)
 plt.clabel(CS, inline=1,fontsize=10)
 plt.xlabel(r'$\log(r)$')
 plt.ylabel(r'$\log(z)$')
-plt.savefig('log_density_before.png')
+plt.savefig('log_density_before_iso.png')
 plt.clf()
 
 CS = plt.contour(r,z,u)
 plt.clabel(CS, inline=1,fontsize=10)
 plt.xlabel('Radius (kpc)')
 plt.ylabel('Height (z) (kpc)')
-plt.savefig('density_before.png')
+plt.savefig('density_before_iso.png')
 plt.clf()
 
 plt.contourf(r,z,u)
@@ -102,9 +100,8 @@ plt.xscale('log')
 plt.yscale('log')
 plt.xlabel(r'$\log(r)$')
 plt.ylabel(r'$\log(z)$')
-plt.savefig('log_density_filled_before.png')
+plt.savefig('log_density_filled_before_iso.png')
 plt.clf()
-
 
 
 
@@ -118,14 +115,14 @@ CS = plt.contour(np.log(r),np.log(z),u)
 plt.clabel(CS, inline=1, fontsize=10)
 plt.xlabel(r'$\log(r)$')
 plt.ylabel(r'$\log(z)$')
-plt.savefig('log_density_after.png')
+plt.savefig('log_density_after_iso.png')
 plt.clf()
 
 CS = plt.contour(r,z,u)
 plt.clabel(CS, inline=1, fontsize=10)
 plt.xlabel('Radius (kpc)')
 plt.ylabel('Height (z) (kpc)')
-plt.savefig('density_after.png')
+plt.savefig('density_after_iso.png')
 plt.clf()
 
 fig = plt.figure()
@@ -133,7 +130,7 @@ ax = fig.add_subplot(111, projection='3d')
 ax.plot_wireframe(np.log(r), np.log(z), u, rstride=2, cstride=2)
 plt.xlabel(r'$\log(r)$')
 plt.ylabel(r'$\log(z)$')
-plt.savefig('wireplot_after.png')
+plt.savefig('wireplot_after_iso.png')
 plt.clf()
 
 plt.contourf(r,z,u)
@@ -141,7 +138,7 @@ plt.xscale('log')
 plt.yscale('log')
 plt.xlabel(r'$\log(r)$')
 plt.ylabel(r'$\log(z)$')
-plt.savefig('log_density_filled_after.png')
+plt.savefig('log_density_filled_after_iso.png')
 plt.clf()
 
 
@@ -150,7 +147,7 @@ CS = plt.contour(np.log(r),np.log(z),residual)
 plt.clabel(CS, inline=1, fontsize=10)
 plt.xlabel(r'$\log(r)$')
 plt.ylabel(r'$\log(z)$')
-plt.savefig('final_residual.png')
+plt.savefig('final_residual_iso.png')
 plt.clf()
 
 fig = plt.figure()
@@ -158,21 +155,20 @@ ax = fig.add_subplot(111, projection='3d')
 ax.plot_wireframe(np.log(r), np.log(z), residual, rstride=2, cstride=2)
 plt.xlabel(r'$\log(r)$')
 plt.ylabel(r'$\log(z)$')
-plt.savefig('wireplot_residual.png')
+plt.savefig('wireplot_residual_iso.png')
 plt.clf()
 
 CS = plt.contour(np.log(r),np.log(z),residual/u)
 plt.clabel(CS, inline=1, fontsize=10)
 plt.xlabel(r'$\log(r)$')
 plt.ylabel(r'$\log(z)$')
-plt.savefig('final_residual_contrast.png')
+plt.savefig('final_residual_contrast_iso.png')
 plt.clf()
 
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 ax.plot_wireframe(np.log(r), np.log(z), residual/u, rstride=2, cstride=2)
-plt.xlabel(r'$\log(r)$')
-plt.ylabel(r'$\log(z)$')
-plt.savefig('wireplot_residual_contrast.png')
+plt.savefig('wireplot_residual_contrast_iso.png')
 plt.clf()
                 
+
