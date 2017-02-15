@@ -114,6 +114,7 @@ f1.write('len in z direction is '+str(z_len))
 f1.write('magnitude of innermost point is '+str(scale))
 f1.write('outer boundary is '+str(r1)+' kpc')
 f1.write('number of iterations is '+str(num_iter))
+f1.write('the no baryon case is '+str(args.no_baryons))
 f1.close()
 
 
