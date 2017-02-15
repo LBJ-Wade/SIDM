@@ -1,0 +1,1 @@
+len in r direction is 50len in z direction is 50magnitude of innermost point is -4outer boundary is 5.0 kpcnumber of iterations is 1000
